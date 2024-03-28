@@ -9,11 +9,14 @@
 
 ## はじめに
 LuaJITとpatch.aulの導入を推奨する。
+
 LuaJIT DL：https://github.com/Per-Terra/LuaJIT-Auto-Builds
+
 patch.aul DL：https://scrapbox.io/nazosauna/patch.aul
 
 ## 簡単な使い方
 画像を読み込ませてそれにこのアニメーション効果をかける。
+
 変化速度としきい値をいじっていい感じにする。
 
 詳しくはscrapboxに書いてある。[GrungeConverter(scrapbox)](https://scrapbox.io/korarei/GrungeConverter)
