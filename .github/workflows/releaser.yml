@@ -43,3 +43,4 @@ jobs:
       with:
         name: GrungeConverter_${{ github.ref_name }}
         files: '*.zip'
+        body_path: ReleaseNote.txt
