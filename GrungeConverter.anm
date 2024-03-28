@@ -1,0 +1,133 @@
+--[[
+    GrungeConverter.anm
+    グランジ素材に変換するアニメーションスクリプト
+
+    使い方：https://scrapbox.io/korarei/GrungeConverter
+
+    by Korarei
+]]--
+
+
+--track0:幅,-1,4000,-1,1
+--track1:高さ,-1,4000,-1,1
+--track2:変化速度,0,1000,10,1
+--track3:しきい値,0,255,128,1
+--check0:背景を描画,1
+--dialog:色/col,_1=0xffffff; 背景色/col,_2=0x000000; 輝度反転/chk,_3=1; 個数,_4=2; Xズレ幅[%],_5=100; Yズレ幅[%],_6=100; Zズレ幅[px],_7={-900, -700}; 角度ズレ幅[°],_8={-180, 180}; ランダム反転/chk,_9=1; seed,_10=-1; 後補正/chk,_11=1;
+
+local chk, mes = pcall(function()
+local w, h = obj.getpixel()
+if w * h == 0 then
+  return
+end
+--大きさが0なら以下の処理しない
+local floor = math.floor
+
+local width = obj.track0 == -1 and obj.screen_w or obj.track0
+local height = obj.track1 == -1 and obj.screen_h or obj.track1
+local sp = obj.track2
+local threshold = obj.track3
+local check_background = obj.check0
+local col = _1 _1 = nil
+local col2 = _2 _2 = nil
+local check_brightness = _3 == 1 _3 = nil
+local n = floor(_4) _4 = nil
+local dx = {- width * _5 / 200, width * _5 / 200} _5 = nil
+local dy = {- height * _6 / 200, height * _6 / 200} _6 = nil
+local dz = _7 _7 = nil
+local dr = _8 _8 = nil
+local check_mirror = _9 == 1 _9 = nil
+local seed = _10 _10 = nil
+local check_binarization = _11 == 1 _11 = nil
+assert(n >= 0, "個数は0以上の整数で入力してください。")
+assert(dx[1] <= 0, "Xズレ幅は0以上で入力してください。")
+assert(dy[1] <= 0, "Yズレ幅は0以上で入力してください。")
+if dz[3] then
+    error("テーブルの要素が過剰です。3番目以降の要素を消してください。")
+elseif dz[2] == nil then
+    error("テーブルに2番目の要素がありません。")
+end
+if dr[3] then
+    error("テーブルの要素が過剰です。3番目以降の要素を消してください。")
+elseif dr[2] == nil then
+    error("テーブルに2番目の要素がありません。")
+end
+
+if n == 0 then
+    return
+end
+
+--透過
+local alpha_type = 0
+if check_brightness then
+    alpha_type = 1
+    threshold = 255 - threshold
+end
+obj.effect("ルミナンスキー", "基準輝度", floor(4096 * threshold / 255), "ぼかし", 0, "type", alpha_type)
+obj.effect("単色化", "強さ", 100, "color", check_binarization and 0xffffff or col, "輝度を保持する", 0)
+obj.copybuffer("cache:processed", "obj")
+--乱数生成
+local frame = sp == 0 and 0 or floor(obj.frame / sp)
+local rand
+if obj.randex then
+    rand = obj.randex(seed, frame)
+else
+    rand = function(st, ed)
+        seed = seed < 0 and seed - 1 or seed + 1
+        return obj.rand(st, ed, seed, frame)
+    end
+end
+--仮想バッファに描画
+obj.setoption("drawtarget", "tempbuffer", width, height)
+if check_background then
+    obj.load("figure","四角形", check_binarization and 0x000000 or col2, 1)
+    obj.drawpoly(- width / 2 , - height / 2, 0, width / 2, - height / 2, 0, width / 2, height / 2, 0, - width / 2, height / 2, 0)
+end
+for i = 1, n do
+    local x = rand(dx[1], dx[2])
+    local y = rand(dy[1], dy[2])
+    local z = rand(dz[1], dz[2])
+    local ry = check_mirror and rand(0, 1) == 1 and 180 or 0
+    local rz = rand(dr[1], dr[2])
+    obj.copybuffer("obj", "cache:processed")
+    obj.draw(x, y, z, 1, 1, 0, ry, rz)
+end
+obj.load("tempbuffer")
+--縁ボケを消す2値化(Zを移動させているため)
+if check_binarization and jit then
+    --LuaJIT使う
+    local ffi = require("ffi")
+    local data, w, h = obj.getpixeldata()
+    local cdata=ffi.cast("uint32_t*",data)
+    for y = 0, h - 1 do
+        for x = 0, w - 1 do
+            local i = x + y * w
+            if (check_background and cdata[i] > 0xff000000) or (not check_background and cdata[i] > 0x00ffffff) then
+                cdata[i] = 0xff000000 + col
+            elseif check_background and cdata[i] == 0xff000000 then
+                cdata[i] = 0xff000000 + col2
+            end
+        end
+    end
+    obj.putpixeldata(data)
+elseif check_binarization then
+    --putpixelつかう
+    local w, h = obj.getpixel()
+    for y = 0, h - 1 do
+        for x = 0, w - 1 do
+            local Y, Cb, Cr, a = obj.getpixel(x, y, "yc")
+            if (check_background and Y > 0) or (not check_background and a > 0) then
+                obj.putpixel(x, y, col, 1)
+            elseif check_background and Y == 0 then
+                obj.putpixel(x, y, col2, 1)
+            end
+        end
+    end
+end
+end)
+if not chk then
+    setfont("游ゴシック",50)
+    obj.load("text", "[GrungeConverter.anm]\n"..mes)
+    obj.draw()
+    error("[GrungeConverter.anm]"..mes)
+end
