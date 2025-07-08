@@ -18,16 +18,24 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Create zip file
+    - name: Create zip file (aviutl)
       run: |
-        git ls-files | grep -vE ".gitattributes|.github" | zip -q -@ GrungeConverter_${{ github.ref_name }}.zip
+        cp *.md script_aviutl
+        cp LICENSE script_aviutl
+        zip -r -q -@ GrungeConverter_${{ github.ref_name }}_AviUtl.zip ./script_aviutl
+
+    - name: Create zip file (aviutl2)
+      run: |
+        cp *.md script_aviutl2
+        cp LICENSE script_aviutl2
+        zip -r -q -@ GrungeConverter_${{ github.ref_name }}_AviUtl2.zip ./script_aviutl2
 
     - name: Create release note
       run: |
         count=0
         IFS=$'\n'
         while read line; do
-          if [ ${count} = 0 ] && [[ ${line} =~ "更新履歴" ]]; then
+          if [ ${count} = 0 ] && [[ ${line} =~ "Change Log" ]]; then
             count=1
           elif [ ${count} = 1 ] && [[ ${line} =~ "*v" ]]; then
             count=2
@@ -42,5 +50,7 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         name: GrungeConverter_${{ github.ref_name }}
-        files: '*.zip'
+        files: |
+          *_AviUtl.zip
+          *_AviUtl2.zip
         body_path: ReleaseNote.txt

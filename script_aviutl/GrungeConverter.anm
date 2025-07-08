@@ -126,7 +126,7 @@ elseif check_binarization then
 end
 end)
 if not chk then
-    setfont("游ゴシック",50)
+    obj.setfont("游ゴシック", 50)
     obj.load("text", "[GrungeConverter.anm]\n"..mes)
     obj.draw()
     error("[GrungeConverter.anm]"..mes)

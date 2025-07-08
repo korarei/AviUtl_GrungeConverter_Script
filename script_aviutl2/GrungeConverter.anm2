@@ -1,0 +1,136 @@
+--[[
+    GrungeConverter.anm
+    グランジ素材に変換するアニメーションスクリプト
+
+    使い方：https://scrapbox.io/korarei/GrungeConverter
+
+    by Korarei
+]]--
+
+--label:Process
+--information:GrungeConverter v1.0.1
+
+--track0:Width,-1,4000,-1,1
+--track1:Height,-1,4000,-1,1
+--track2:Speed,0,1000,10,1
+--track3:Threshold,0.0,1.0,0.5,0.001
+--check0:Mix BG,1
+--color@_1:Color,0xffffff
+--color@_2:BG Color,0x000000
+--check@_3:Invert Y,1
+--track@_4:Num,1,100,2,1
+--track@_5:DX [%],0.0,200.0,100.0,0.001
+--track@_6:DY [%],0.0,200.0,100.0,0.001
+--value@_7:DZ [px],{-900,-700}
+--value@_8:DR [°],{-180,180}
+--check@_9:Random Flip,1
+--track@_10:Seed,-10000,10000,-1,1
+--check@_11:Adjustment,1
+
+--[[pixelshader@thresholding:
+Texture2D texture0 : register(t0);
+cbuffer constant0 : register(b0) {
+    float threshold;
+    float col1;
+    float col2;
+    float col2_a;
+};
+float4 decode_col(float rgb, float a) {
+    uint col = (uint)rgb;
+    float r = ((col >> 16) & 0xFF) / 255.0;
+    float g = ((col >> 8) & 0xFF) / 255.0;
+    float b = (col & 0xFF) / 255.0;
+    return float4(r*a, g*a, b*a, a);
+};
+float4 thresholding(float4 pos : SV_Position) : SV_Target {
+    float4 col = texture0[int2(pos.xy)];
+    float mask = step(threshold, col.r);
+    return lerp(decode_col(col2, col2_a), decode_col(col1, 1.0), mask);
+}
+]]
+
+local chk, mes = pcall(function()
+local w, h = obj.getpixel()
+if w * h == 0 then
+  return
+end
+--大きさが0なら以下の処理しない
+local floor = math.floor
+
+local width = obj.track0 == -1 and obj.screen_w or obj.track0
+local height = obj.track1 == -1 and obj.screen_h or obj.track1
+local sp = obj.track2
+local threshold = obj.track3
+local check_background = obj.check0
+local col = _1 _1 = nil
+local col2 = _2 _2 = nil
+local check_brightness = _3 == 1 _3 = nil
+local n = floor(_4) _4 = nil
+local dx = {- width * _5 / 200, width * _5 / 200} _5 = nil
+local dy = {- height * _6 / 200, height * _6 / 200} _6 = nil
+local dz = _7 _7 = nil
+local dr = _8 _8 = nil
+local check_mirror = _9 == 1 _9 = nil
+local seed = _10 _10 = nil
+local check_thresholding = _11 == 1 _11 = nil
+if dz[3] then
+    error("The table has too many elements. Please remove the 3rd and subsequent elements.")
+elseif dz[2] == nil then
+    error("The table does not have a 2nd element.")
+end
+if dr[3] then
+    error("The table has too many elements. Please remove the 3rd and subsequent elements.")
+elseif dr[2] == nil then
+    error("The table does not have a 2nd element.")
+end
+
+if n == 0 then
+    return
+end
+
+--透過
+local alpha_type = 0
+if check_brightness then
+    alpha_type = 1
+    threshold = 1.0 - threshold
+end
+obj.effect("ルミナンスキー", "基準輝度", floor(4096 * threshold), "ぼかし", 0, "type", alpha_type)
+obj.effect("単色化", "強さ", 100, "color", check_thresholding and 0xffffff or col, "輝度を保持する", 0)
+obj.copybuffer("cache:processed", "obj")
+--乱数生成
+local frame = sp == 0 and 0 or floor(obj.frame / sp)
+
+local function rand(st, ed)
+        seed = seed < 0 and seed - 1 or seed + 1
+        return obj.rand(st, ed, seed, frame)
+end
+
+--仮想バッファに描画
+obj.setoption("drawtarget", "tempbuffer", width, height)
+if check_background then
+    obj.load("figure","四角形", check_thresholding and 0x000000 or col2, 1)
+    obj.drawpoly(- width / 2 , - height / 2, 0, width / 2, - height / 2, 0, width / 2, height / 2, 0, - width / 2, height / 2, 0)
+end
+for i = 1, n do
+    local x = rand(dx[1], dx[2])
+    local y = rand(dy[1], dy[2])
+    local z = rand(dz[1], dz[2])
+    local ry = check_mirror and rand(0, 1) == 1 and 180 or 0
+    local rz = rand(dr[1], dr[2])
+    obj.copybuffer("obj", "cache:processed")
+    obj.draw(x, y, z, 1, 1, 0, ry, rz)
+end
+obj.load("tempbuffer")
+--縁ボケを消す2値化(Zを移動させているため)
+
+if check_thresholding then
+    obj.pixelshader("thresholding", "object", {"object"}, {threshold, col, col2, check_background and 1.0 or 0.0})
+end
+
+end)
+if not chk then
+    obj.setfont("游ゴシック", 50)
+    obj.load("text", "[GrungeConverter.anm]\n"..mes)
+    obj.draw()
+    error("[GrungeConverter.anm]"..mes)
+end
